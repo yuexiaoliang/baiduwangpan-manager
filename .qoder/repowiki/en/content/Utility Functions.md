@@ -1,0 +1,419 @@
+# Utility Functions
+
+<cite>
+**Referenced Files in This Document**
+- [src/utils/index.ts](file://src/utils/index.ts)
+- [src/utils/config.ts](file://src/utils/config.ts)
+- [src/commands/upload.ts](file://src/commands/upload.ts)
+- [src/commands/download.ts](file://src/commands/download.ts)
+- [src/commands/list.ts](file://src/commands/list.ts)
+- [src/commands/auth.ts](file://src/commands/auth.ts)
+- [src/api/file.ts](file://src/api/file.ts)
+- [src/api/client.ts](file://src/api/client.ts)
+- [src/index.ts](file://src/index.ts)
+- [package.json](file://package.json)
+- [README.md](file://README.md)
+</cite>
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [Architecture Overview](#architecture-overview)
+5. [Detailed Component Analysis](#detailed-component-analysis)
+6. [Dependency Analysis](#dependency-analysis)
+7. [Performance Considerations](#performance-considerations)
+8. [Troubleshooting Guide](#troubleshooting-guide)
+9. [Conclusion](#conclusion)
+10. [Appendices](#appendices)
+
+## Introduction
+This document provides comprehensive documentation for the utility functions and helper modules in the project. It focuses on:
+- File system utilities: path normalization, recursive directory traversal, and file metadata extraction helpers
+- Formatting functions: human-readable sizes, timestamps, and progress display
+- Progress tracking mechanisms and console output formatting
+- Configuration utilities and environment variable parsing
+- System integration helpers and extension patterns
+- Practical usage examples, integration patterns, and performance best practices
+
+The utilities are primarily located under src/utils and are consumed by CLI commands and API modules to provide robust, user-friendly functionality.
+
+## Project Structure
+The utility modules are organized under src/utils and are imported by command handlers and API modules. The main CLI entry defines subcommands that orchestrate operations using these utilities.
+
+```mermaid
+graph TB
+subgraph "CLI Entry"
+IDX["src/index.ts"]
+end
+subgraph "Commands"
+CMD_UPLOAD["src/commands/upload.ts"]
+CMD_DOWNLOAD["src/commands/download.ts"]
+CMD_LIST["src/commands/list.ts"]
+CMD_AUTH["src/commands/auth.ts"]
+end
+subgraph "Utilities"
+UTIL_INDEX["src/utils/index.ts"]
+UTIL_CONFIG["src/utils/config.ts"]
+end
+subgraph "API Layer"
+API_CLIENT["src/api/client.ts"]
+API_FILE["src/api/file.ts"]
+end
+IDX --> CMD_UPLOAD
+IDX --> CMD_DOWNLOAD
+IDX --> CMD_LIST
+IDX --> CMD_AUTH
+CMD_UPLOAD --> UTIL_INDEX
+CMD_UPLOAD --> API_FILE
+CMD_DOWNLOAD --> UTIL_INDEX
+CMD_DOWNLOAD --> API_CLIENT
+CMD_LIST --> UTIL_INDEX
+CMD_AUTH --> UTIL_CONFIG
+CMD_UPLOAD --> API_CLIENT
+CMD_DOWNLOAD --> API_CLIENT
+CMD_LIST --> API_CLIENT
+CMD_AUTH --> API_CLIENT
+API_FILE --> UTIL_INDEX
+API_CLIENT --> UTIL_CONFIG
+```
+
+**Diagram sources**
+- [src/index.ts](file://src/index.ts#L1-L26)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L1-L144)
+- [src/commands/download.ts](file://src/commands/download.ts#L1-L104)
+- [src/commands/list.ts](file://src/commands/list.ts#L1-L81)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L1-L258)
+- [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+- [src/api/file.ts](file://src/api/file.ts#L1-L201)
+- [src/api/client.ts](file://src/api/client.ts#L1-L171)
+
+**Section sources**
+- [src/index.ts](file://src/index.ts#L1-L26)
+- [package.json](file://package.json#L1-L81)
+
+## Core Components
+This section documents the primary utility modules and their responsibilities.
+
+- File system utilities
+  - Path normalization for remote paths
+  - Recursive directory traversal returning local and relative paths
+  - Directory detection and file reading helpers
+  - Standard input reading
+- Formatting utilities
+  - Human-readable size formatting
+  - Timestamp formatting to locale string
+  - Progress bar printing to stderr
+- Configuration utilities
+  - Loading, saving, updating, and querying configuration file paths
+  - Structured configuration model for tokens and keys
+
+These utilities are used across commands to provide consistent behavior and user experience.
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+
+## Architecture Overview
+The utilities integrate with commands and API modules to deliver cohesive functionality. Commands import utilities for formatting, path handling, and progress reporting, while API modules rely on utilities for configuration and token management.
+
+```mermaid
+sequenceDiagram
+participant User as "User"
+participant CLI as "CLI Entry (src/index.ts)"
+participant Cmd as "Command Handler"
+participant Util as "Utilities (src/utils/*)"
+participant API as "API Layer (src/api/*)"
+User->>CLI : Run subcommand
+CLI->>Cmd : Dispatch to handler
+Cmd->>Util : Import utilities (format, path, progress, config)
+Cmd->>API : Initialize clients and perform operations
+API->>Util : Load/save config, parse env vars
+Cmd-->>User : Output formatted results and progress
+```
+
+**Diagram sources**
+- [src/index.ts](file://src/index.ts#L1-L26)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L1-L144)
+- [src/commands/download.ts](file://src/commands/download.ts#L1-L104)
+- [src/commands/list.ts](file://src/commands/list.ts#L1-L81)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L1-L258)
+- [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+- [src/api/client.ts](file://src/api/client.ts#L1-L171)
+- [src/api/file.ts](file://src/api/file.ts#L1-L201)
+
+## Detailed Component Analysis
+
+### File System Utilities
+Responsibilities:
+- Normalize remote paths to ensure leading slash
+- Recursively enumerate files with both absolute and relative paths
+- Detect directories and read files as buffers
+- Read standard input streams asynchronously
+
+Usage patterns:
+- Path normalization ensures consistent remote path handling across commands
+- Recursive traversal enables batch operations on directories
+- Buffer reading and stdin support enable flexible input sources
+
+Integration examples:
+- Upload command normalizes remote path and traverses directories to upload files
+- Download command uses path utilities to locate files and determine local save locations
+
+```mermaid
+flowchart TD
+Start(["Entry: getAllFiles(dirPath, basePath)"]) --> ReadDir["Read directory entries"]
+ReadDir --> LoopEntries{"For each entry"}
+LoopEntries --> IsDir{"Is directory?"}
+IsDir --> |Yes| Recurse["Recurse into subdirectory<br/>with updated relative path"]
+IsDir --> |No| IsFile{"Is file?"}
+IsFile --> |Yes| AddFile["Add {localPath, relativePath}"]
+IsFile --> |No| NextEntry["Skip (e.g., symlink)"]
+Recurse --> LoopEntries
+AddFile --> LoopEntries
+NextEntry --> LoopEntries
+LoopEntries --> Done{"No more entries?"}
+Done --> |No| LoopEntries
+Done --> |Yes| ReturnFiles["Return collected files"]
+```
+
+**Diagram sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L35-L55)
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L25-L93)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L33-L96)
+
+### Formatting Utilities
+Responsibilities:
+- Convert byte counts to human-readable size strings
+- Format Unix timestamps to localized date/time strings
+- Render progress bars to stderr with percentage and counters
+
+Usage patterns:
+- Size formatting improves readability in listings and uploads
+- Timestamp formatting aligns with user expectations
+- Progress bars provide real-time feedback during long-running operations
+
+Integration examples:
+- List command formats sizes and timestamps for tabular output
+- Upload command prints progress bars during chunked uploads
+
+```mermaid
+flowchart TD
+Start(["Entry: printProgress(current, total, prefix)"]) --> CalcPercent["Compute percent = round(current/total*100)"]
+CalcPercent --> CalcFilled["Compute filled length = round(barLength*current/total)"]
+CalcFilled --> BuildBar["Build bar string with filled and empty segments"]
+BuildBar --> WriteOut["Write to stderr: prefix + bar + percent + counters"]
+WriteOut --> CheckComplete{"current equals total?"}
+CheckComplete --> |Yes| Newline["Write newline to stderr"]
+CheckComplete --> |No| End(["Exit"])
+Newline --> End
+```
+
+**Diagram sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L95-L109)
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L4-L23)
+- [src/commands/list.ts](file://src/commands/list.ts#L63-L70)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L123-L131)
+
+### Progress Tracking and Console Output
+Mechanisms:
+- Progress printing to stderr to avoid interfering with stdout data
+- Percentage calculation and bar construction for visual feedback
+- Automatic newline on completion
+
+Best practices:
+- Use stderr for progress to keep stdout clean for data
+- Keep bar length and precision balanced for readability
+- Clear partial lines when progress completes
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L95-L109)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L123-L131)
+- [src/commands/download.ts](file://src/commands/download.ts#L85-L91)
+
+### Configuration Utilities and Environment Variable Parsing
+Responsibilities:
+- Define configuration model for tokens and keys
+- Load configuration from JSON file with safe parsing
+- Save configuration with secure permissions and atomic writes
+- Merge updates into existing configuration
+- Provide configuration file path for diagnostics and copying
+
+Environment variable parsing:
+- Client module reads tokens and credentials from environment variables with fallback to config file
+- Authentication command supports environment variables for app credentials
+
+Integration examples:
+- Auth command saves tokens and prints configuration location
+- Client module refreshes tokens automatically and persists updates
+
+```mermaid
+classDiagram
+class Config {
++string access_token
++string refresh_token
++string app_key
++string secret_key
++number expires_at
+}
+class ConfigUtils {
++loadConfig() Config
++saveConfig(config : Config) void
++updateConfig(updates : Partial<Config>) void
++getConfigPath() string
+}
+class Client {
++getAccessToken() string
++getRefreshToken() string
++getAppCredentials() AppCreds
++createClient() AxiosInstance
+}
+ConfigUtils --> Config : "manages"
+Client --> ConfigUtils : "loads/saves"
+```
+
+**Diagram sources**
+- [src/utils/config.ts](file://src/utils/config.ts#L8-L61)
+- [src/api/client.ts](file://src/api/client.ts#L15-L104)
+
+**Section sources**
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+- [src/api/client.ts](file://src/api/client.ts#L15-L104)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L218-L257)
+
+### System Integration Helpers
+Capabilities:
+- Cross-platform browser opening for OAuth flows
+- Local HTTP server for OAuth callbacks
+- Token refresh and persistence
+- Chunked upload preparation and MD5 computation
+
+Integration patterns:
+- Commands depend on utilities for path handling and formatting
+- API modules depend on configuration utilities for credentials
+- Authentication command orchestrates browser and server interactions
+
+**Section sources**
+- [src/commands/auth.ts](file://src/commands/auth.ts#L93-L159)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L194-L216)
+- [src/api/file.ts](file://src/api/file.ts#L187-L198)
+- [src/api/client.ts](file://src/api/client.ts#L63-L104)
+
+## Dependency Analysis
+The utilities are consumed by commands and API modules, forming a layered architecture. The following diagram shows key dependencies:
+
+```mermaid
+graph LR
+UTIL_INDEX["src/utils/index.ts"] --> CMD_UPLOAD["src/commands/upload.ts"]
+UTIL_INDEX --> CMD_DOWNLOAD["src/commands/download.ts"]
+UTIL_INDEX --> CMD_LIST["src/commands/list.ts"]
+UTIL_CONFIG["src/utils/config.ts"] --> CMD_AUTH["src/commands/auth.ts"]
+UTIL_CONFIG --> API_CLIENT["src/api/client.ts"]
+API_FILE["src/api/file.ts"] --> CMD_UPLOAD
+API_CLIENT --> CMD_UPLOAD
+API_CLIENT --> CMD_DOWNLOAD
+API_CLIENT --> CMD_LIST
+API_CLIENT --> CMD_AUTH
+```
+
+**Diagram sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L1-L144)
+- [src/commands/download.ts](file://src/commands/download.ts#L1-L104)
+- [src/commands/list.ts](file://src/commands/list.ts#L1-L81)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L1-L258)
+- [src/api/file.ts](file://src/api/file.ts#L1-L201)
+- [src/api/client.ts](file://src/api/client.ts#L1-L171)
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L6-L14)
+- [src/commands/download.ts](file://src/commands/download.ts#L7)
+- [src/commands/list.ts](file://src/commands/list.ts#L4)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L6)
+- [src/api/file.ts](file://src/api/file.ts#L1-L201)
+- [src/api/client.ts](file://src/api/client.ts#L1-L171)
+
+## Performance Considerations
+- Recursive directory traversal
+  - Complexity: O(n) where n is the number of entries
+  - Consider memory usage for very large directory trees; streaming or batching could reduce peak memory
+- Buffer operations
+  - Reading entire files into memory can be memory-intensive for large files
+  - For extremely large files, consider streaming APIs or chunked processing
+- Progress rendering
+  - Frequent stderr writes can impact performance; ensure minimal allocations in tight loops
+- Configuration file I/O
+  - JSON parsing and writing are lightweight but should be avoided in hot loops
+- Network and API calls
+  - Chunked uploads and retries add overhead; tune chunk size and retry policies appropriately
+
+[No sources needed since this section provides general guidance]
+
+## Troubleshooting Guide
+Common issues and resolutions:
+- Remote path formatting
+  - Ensure paths start with a leading slash; use the normalization utility to prevent errors
+- Directory traversal
+  - Verify directory existence and permissions; handle empty directories gracefully
+- Progress display
+  - Confirm stderr availability; avoid mixing progress with data output
+- Configuration loading
+  - Check configuration file path and permissions; ensure JSON validity
+- Token refresh failures
+  - Validate app credentials and network connectivity; confirm refresh token availability
+
+**Section sources**
+- [src/utils/index.ts](file://src/utils/index.ts#L25-L33)
+- [src/utils/index.ts](file://src/utils/index.ts#L35-L55)
+- [src/utils/index.ts](file://src/utils/index.ts#L95-L109)
+- [src/utils/config.ts](file://src/utils/config.ts#L19-L30)
+- [src/api/client.ts](file://src/api/client.ts#L63-L104)
+
+## Conclusion
+The utility modules provide essential building blocks for path handling, formatting, progress reporting, and configuration management. Their integration across commands and API modules ensures consistent behavior, improved user experience, and maintainable code. Following the best practices outlined here will help extend and optimize these utilities for future enhancements.
+
+[No sources needed since this section summarizes without analyzing specific files]
+
+## Appendices
+
+### Usage Examples and Extension Patterns
+- Path normalization
+  - Use for remote paths to ensure consistent formatting across commands
+- Recursive directory traversal
+  - Extend to filter by file type or size thresholds
+- Progress tracking
+  - Customize bar visuals and precision based on context
+- Configuration management
+  - Add migration logic for schema updates
+  - Integrate with external credential stores if needed
+
+**Section sources**
+- [src/commands/upload.ts](file://src/commands/upload.ts#L33-L96)
+- [src/commands/list.ts](file://src/commands/list.ts#L36-L80)
+- [src/commands/download.ts](file://src/commands/download.ts#L25-L103)
+- [src/utils/index.ts](file://src/utils/index.ts#L25-L109)
+- [src/utils/config.ts](file://src/utils/config.ts#L19-L61)
+
+### Integration with Other System Components
+- CLI entry dispatches subcommands that import utilities
+- Commands depend on utilities for formatting and path handling
+- API modules depend on configuration utilities for credentials
+- Authentication command coordinates browser and server interactions
+
+**Section sources**
+- [src/index.ts](file://src/index.ts#L8-L23)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L6-L14)
+- [src/commands/download.ts](file://src/commands/download.ts#L7)
+- [src/commands/list.ts](file://src/commands/list.ts#L4)
+- [src/commands/auth.ts](file://src/commands/auth.ts#L6)
+- [src/api/client.ts](file://src/api/client.ts#L1-L171)
+- [src/api/file.ts](file://src/api/file.ts#L1-L201)
