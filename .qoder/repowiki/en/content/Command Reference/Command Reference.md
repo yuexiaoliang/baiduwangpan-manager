@@ -326,26 +326,30 @@ The backup script demonstrates spawning the CLI as a child process for automated
 const result = spawnSync('npx', ['--yes', 'baidupan-cli', 'upload', backupFile, remotePath], {
   stdio: 'inherit',
   shell: true,
-});
+})
 ```
 
 #### Environment-Based Configuration
 Node.js scripts can leverage environment variables for configuration:
 
 ```javascript
-const mongoUrl = process.env.MONGO_URL || process.argv[2];
-const remoteDir = process.env.REMOTE_DIR || process.argv[3];
+const mongoUrl = process.env.MONGO_URL || process.argv[2]
+const remoteDir = process.env.REMOTE_DIR || process.argv[3]
 ```
 
 #### PM2 Integration
 The ecosystem configuration shows how to schedule automated backups using PM2:
 
 ```javascript
-cron_restart: '0 * * * *', // Every hour
-autorestart: false,        // Wait for cron triggers
-env: {
-  MONGO_URL: 'mongodb://localhost:27017/mydb',
-  REMOTE_DIR: '/backup/mongodb'
+module.exports = {
+  apps: [{
+    cron_restart: '0 * * * *', // Every hour
+    autorestart: false, // Wait for cron triggers
+    env: {
+      MONGO_URL: 'mongodb://localhost:27017/mydb',
+      REMOTE_DIR: '/backup/mongodb'
+    }
+  }],
 }
 ```
 

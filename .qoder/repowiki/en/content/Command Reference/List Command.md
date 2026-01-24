@@ -312,7 +312,7 @@ The list command provides a straightforward way to browse Baidu Pan directories 
 ### Chinese Localization Features
 **New** The list command now provides comprehensive Chinese localization:
 
-- **Table Headers**: 
+- **Table Headers**:
   - "类型" (Type) - Chinese for file type indicator
   - "大小" (Size) - Chinese for file size display
   - "修改时间" (Modified) - Chinese for modification timestamp

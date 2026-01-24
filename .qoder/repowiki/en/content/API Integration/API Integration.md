@@ -498,7 +498,7 @@ child.stderr.on('data', (data) => {
 
 child.on('close', (code) => {
   console.log(`进程退出，退出码: ${code}`)
-}
+})
 ```
 
 **Section sources**
@@ -521,7 +521,8 @@ import { join } from 'node:path'
 // Check mongodump availability
 try {
   execSync('mongodump --version', { stdio: 'ignore' })
-} catch {
+}
+catch {
   console.error('错误: 未找到 mongodump，请安装 MongoDB 工具')
   process.exit(1)
 }
@@ -573,10 +574,10 @@ module.exports = {
     script: './backup_mongodb.mjs',
     cwd: __dirname,
     cron_restart: '0 * * * *', // 每小时执行一次
-    autorestart: false,        // 执行完毕后不自动重启（等待 cron 触发）
+    autorestart: false, // 执行完毕后不自动重启（等待 cron 触发）
     env: {
       MONGO_URL: 'mongodb://localhost:27017', // MongoDB 连接字符串
-      REMOTE_DIR: '/backup/local/mongodb',   // 百度网盘远程目录
+      REMOTE_DIR: '/backup/local/mongodb', // 百度网盘远程目录
     },
   }],
 }
@@ -667,7 +668,7 @@ cron_restart: '0 */6 * * *'
 // 每周日零点执行
 cron_restart: '0 0 * * 0'
 
-# 每 15 分钟执行一次
+// 每 15 分钟执行一次
 cron_restart: '*/15 * * * *'
 ```
 
@@ -704,7 +705,7 @@ CLUSTERING --> SCALING["Horizontal Scaling"]
 Applications can import and use the Baidu Pan API client directly for programmatic interactions:
 
 ```javascript
-import { createClient, BaiduPanApi } from 'baidupan-cli'
+import { BaiduPanApi, createClient } from 'baidupan-cli'
 
 // Initialize client and API wrapper
 const client = createClient()
@@ -714,14 +715,15 @@ const api = new BaiduPanApi(client)
 try {
   const userInfo = await api.getUserInfo()
   console.log('用户信息:', userInfo)
-  
+
   const files = await api.listFiles('/backup')
   console.log('文件列表:', files)
-  
+
   // Upload file programmatically
   const result = await api.uploadFile('./local-file.txt', '/remote-file.txt')
   console.log('上传结果:', result)
-} catch (error) {
+}
+catch (error) {
   console.error('API 调用失败:', error.message)
 }
 ```
@@ -729,7 +731,7 @@ try {
 ### Custom Endpoint Extensions
 Extend the BaiduPanApi class to add new endpoints:
 
-```javascript
+```typescript
 class ExtendedBaiduPanApi extends BaiduPanApi {
   async getFileInfo(fsId: number): Promise<any> {
     const response = await this.client.get('/rest/2.0/xpan/file', {
@@ -740,14 +742,11 @@ class ExtendedBaiduPanApi extends BaiduPanApi {
     })
     return response.data
   }
-  
+
   async batchDelete(fsIds: number[]): Promise<any> {
-    const response = await this.client.post('/rest/2.0/xpan/file', 
-      `fsids=${JSON.stringify(fsIds)}&method=batchdelete`,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      }
-    )
+    const response = await this.client.post('/rest/2.0/xpan/file', `fsids=${JSON.stringify(fsIds)}&method=batchdelete`, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    })
     return response.data
   }
 }
@@ -758,8 +757,8 @@ Combine Baidu Pan CLI with other Node.js libraries for enhanced functionality:
 
 ```javascript
 import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 import cron from 'node-cron'
-import fs from 'fs'
 
 // Schedule periodic backups
 cron.schedule('0 2 * * *', async () => {
@@ -767,18 +766,19 @@ cron.schedule('0 2 * * *', async () => {
     // Generate backup file
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[:\-T]/g, '')
     const backupFile = `/tmp/backup_${timestamp}.tar.gz`
-    
+
     // Create compressed backup
     execSync(`tar -czf ${backupFile} /data/important/`)
-    
+
     // Upload to Baidu Pan using secure package execution
-    execSync('npx --yes baidupan-cli@latest upload ${backupFile} /backups/${timestamp}.tar.gz')
-    
+    execSync(`npx --yes baidupan-cli@latest upload ${backupFile} /backups/${timestamp}.tar.gz`)
+
     // Clean up local backup
     fs.unlinkSync(backupFile)
-    
+
     console.log(`Backup completed at ${new Date()}`)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Backup failed:', error.message)
   }
 })
