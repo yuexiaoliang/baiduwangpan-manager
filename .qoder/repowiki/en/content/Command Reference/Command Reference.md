@@ -12,9 +12,19 @@
 - [src/api/types.ts](file://src/api/types.ts)
 - [src/utils/config.ts](file://src/utils/config.ts)
 - [src/utils/index.ts](file://src/utils/index.ts)
+- [example/backup_mongodb.mjs](file://example/backup_mongodb.mjs)
+- [example/README.md](file://example/README.md)
+- [example/ecosystem.config.cjs](file://example/ecosystem.config.cjs)
 - [package.json](file://package.json)
 - [README.md](file://README.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Enhanced upload command documentation with new stdin streaming capabilities
+- Added Node.js integration examples and programmatic usage patterns
+- Updated concurrency option documentation for chunk upload control
+- Added practical examples for automated backup scenarios
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -22,17 +32,18 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Command Reference](#detailed-command-reference)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Node.js Integration Examples](#nodejs-integration-examples)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
-This document provides a comprehensive command reference for the Baidu Pan CLI tool. It covers all CLI commands, their syntax, parameters, options, aliases, execution flows, error handling, return codes, and practical usage examples. It targets both beginners and advanced users who want to manage Baidu Pan files efficiently from the command line.
+This document provides a comprehensive command reference for the Baidu Pan CLI tool. It covers all CLI commands, their syntax, parameters, options, aliases, execution flows, error handling, return codes, and practical usage examples. It targets both beginners and advanced users who want to manage Baidu Pan files efficiently from the command line, including modern Node.js integration patterns.
 
 ## Project Structure
-The CLI is organized around a central entry point that defines subcommands. Each subcommand encapsulates its own argument parsing and execution logic. Shared functionality resides in API clients and utilities.
+The CLI is organized around a central entry point that defines subcommands. Each subcommand encapsulates its own argument parsing and execution logic. Shared functionality resides in API clients and utilities, with enhanced support for Node.js integration through dedicated example scripts.
 
 ```mermaid
 graph TB
@@ -44,12 +55,13 @@ Auth --> APIClient["src/api/client.ts"]
 List --> APIClient
 Upload --> APIClient
 Download --> APIClient
-APIClient --> FileAPI["src/api/file.ts"]
-APIClient --> Types["src/api/types.ts"]
-APIClient --> Config["src/utils/config.ts"]
 Upload --> Utils["src/utils/index.ts"]
 List --> Utils
 Download --> Utils
+Utils --> Stdin["readStdin()"]
+Utils --> BufferOps["Buffer Operations"]
+Examples["example/backup_mongodb.mjs<br/>Node.js Integration"] --> Upload
+Examples --> PM2["example/ecosystem.config.cjs<br/>PM2 Configuration"]
 ```
 
 **Diagram sources**
@@ -63,6 +75,8 @@ Download --> Utils
 - [src/api/types.ts](file://src/api/types.ts#L1-L108)
 - [src/utils/config.ts](file://src/utils/config.ts#L1-L62)
 - [src/utils/index.ts](file://src/utils/index.ts#L1-L110)
+- [example/backup_mongodb.mjs](file://example/backup_mongodb.mjs#L1-L104)
+- [example/ecosystem.config.cjs](file://example/ecosystem.config.cjs#L1-L24)
 
 **Section sources**
 - [src/index.ts](file://src/index.ts#L1-L26)
@@ -72,7 +86,8 @@ Download --> Utils
 - Subcommand registry: Centralized definition of commands and aliases.
 - Command implementations: Each command defines its arguments and execution logic.
 - API client: Handles authentication, token refresh, and HTTP requests to Baidu APIs.
-- Utilities: Path normalization, file system helpers, progress printing, and formatting.
+- Utilities: Path normalization, file system helpers, progress printing, and enhanced stdin streaming capabilities.
+- Node.js integration: Dedicated example scripts demonstrating programmatic usage patterns.
 
 **Section sources**
 - [src/index.ts](file://src/index.ts#L8-L23)
@@ -80,11 +95,12 @@ Download --> Utils
 - [src/utils/index.ts](file://src/utils/index.ts#L25-L110)
 
 ## Architecture Overview
-The CLI follows a layered architecture:
+The CLI follows a layered architecture with enhanced Node.js integration support:
 - Entry point registers subcommands and aliases.
 - Commands depend on an API client to communicate with Baidu Pan services.
 - API client manages tokens, interceptors, and retries.
-- Utilities provide cross-cutting concerns like path normalization and progress reporting.
+- Utilities provide cross-cutting concerns like path normalization, progress reporting, and stdin streaming.
+- Example scripts demonstrate programmatic usage patterns for automation and integration.
 
 ```mermaid
 sequenceDiagram
@@ -103,6 +119,7 @@ Baidu-->>HTTP : Response
 HTTP-->>API : Parsed response
 API-->>Cmd : Result or error
 Cmd-->>User : Output or exit code
+Note over Cmd,API : Enhanced with stdin streaming<br/>and concurrency control
 ```
 
 **Diagram sources**
@@ -146,7 +163,7 @@ Purpose: Authorize with Baidu Pan using OAuth. Starts a local server to receive 
   - baidupan-cli auth (with BAIDU_APP_KEY and BAIDU_SECRET_KEY set)
   - baidupan-cli auth -r https://your-domain.com/callback -p 8080
 - Notes
-  - Ensure the redirect URI is added to your app’s redirect URIs in the Baidu Open Platform.
+  - Ensure the redirect URI is added to your app's redirect URIs in the Baidu Open Platform.
 
 **Section sources**
 - [src/commands/auth.ts](file://src/commands/auth.ts#L19-L91)
@@ -191,7 +208,7 @@ Purpose: List files in a directory with optional sorting and JSON output.
   - baidupan-cli list /docs -o size
   - baidupan-cli list /media --json
 - Notes
-  - Sorting uses the Baidu API’s order and desc parameters.
+  - Sorting uses the Baidu API's order and desc parameters.
 
 **Section sources**
 - [src/commands/list.ts](file://src/commands/list.ts#L6-L81)
@@ -201,10 +218,10 @@ Purpose: List files in a directory with optional sorting and JSON output.
 ---
 
 ### Command: upload
-Purpose: Upload a single file, a directory (recursively), or data from stdin to Baidu Pan.
+Purpose: Upload a single file, a directory (recursively), or data from stdin to Baidu Pan with configurable concurrency control.
 
 - Syntax
-  - baidupan-cli upload LOCAL REMOTE
+  - baidupan-cli upload LOCAL REMOTE [-c, --concurrency N]
 - Aliases
   - up -> upload
 - Positional arguments
@@ -214,23 +231,30 @@ Purpose: Upload a single file, a directory (recursively), or data from stdin to 
   - REMOTE
     - Description: Remote path on Baidu Pan
     - Required
+  - concurrency
+    - Description: Concurrent chunk uploads (default: 3)
+    - Alias: -c
 - Execution flow
   - Normalizes REMOTE path to ensure leading slash.
   - Handles stdin input if LOCAL is "-".
   - Validates existence of LOCAL path.
   - If LOCAL is a directory, enumerates files recursively and uploads each file individually.
-  - For single files:
+  - For single files or stdin data:
     - Determines final remote path (appends filename if REMOTE ends with "/").
-    - Splits file into chunks and calculates MD5 lists.
-    - Precreates file, uploads missing chunks, and creates the file.
+    - Splits data into chunks and calculates MD5 lists.
+    - Precreates file, uploads missing chunks with concurrency control, and creates the file.
 - Error handling and return codes
   - Exits with code 1 on missing local path, API errors, or upload failures.
 - Practical examples
   - baidupan-cli upload ./file.txt /dest/file.txt
   - baidupan-cli upload ./folder /dest/folder/
   - echo "content" | baidupan-cli upload - /dest/stdin.txt
+  - baidupan-cli upload ./large-file.zip /backup/ -c 5
 - Notes
   - Large files are split into 4 MB chunks; progress is printed during chunk uploads.
+  - Concurrency controls the number of simultaneous chunk uploads for optimal performance.
+
+**Updated** Enhanced with stdin streaming capabilities and concurrency control for better performance tuning.
 
 **Section sources**
 - [src/commands/upload.ts](file://src/commands/upload.ts#L16-L96)
@@ -240,6 +264,7 @@ Purpose: Upload a single file, a directory (recursively), or data from stdin to 
 - [src/api/file.ts](file://src/api/file.ts#L143-L167)
 - [src/utils/index.ts](file://src/utils/index.ts#L35-L55)
 - [src/utils/index.ts](file://src/utils/index.ts#L76-L93)
+- [src/utils/index.ts](file://src/utils/index.ts#L77-L94)
 
 ---
 
@@ -289,8 +314,61 @@ These aliases provide convenient shortcuts for frequently used commands.
 **Section sources**
 - [src/index.ts](file://src/index.ts#L17-L21)
 
+## Node.js Integration Examples
+
+### Programmatic Usage Patterns
+The CLI supports seamless integration with Node.js applications through various approaches demonstrated in the example scripts.
+
+#### Direct Command Execution
+The backup script demonstrates spawning the CLI as a child process for automated workflows:
+
+```javascript
+const result = spawnSync('npx', ['--yes', 'baidupan-cli', 'upload', backupFile, remotePath], {
+  stdio: 'inherit',
+  shell: true,
+});
+```
+
+#### Environment-Based Configuration
+Node.js scripts can leverage environment variables for configuration:
+
+```javascript
+const mongoUrl = process.env.MONGO_URL || process.argv[2];
+const remoteDir = process.env.REMOTE_DIR || process.argv[3];
+```
+
+#### PM2 Integration
+The ecosystem configuration shows how to schedule automated backups using PM2:
+
+```javascript
+cron_restart: '0 * * * *', // Every hour
+autorestart: false,        // Wait for cron triggers
+env: {
+  MONGO_URL: 'mongodb://localhost:27017/mydb',
+  REMOTE_DIR: '/backup/mongodb'
+}
+```
+
+### Advanced Upload Patterns
+For programmatic control, the upload command exposes stdin streaming and concurrency options:
+
+#### Stdin Streaming
+```bash
+echo "data" | baidupan-cli upload - /dest/stdin.txt
+```
+
+#### Concurrency Control
+```bash
+baidupan-cli upload ./large-file.zip /backup/ -c 5
+```
+
+**Section sources**
+- [example/backup_mongodb.mjs](file://example/backup_mongodb.mjs#L1-L104)
+- [example/README.md](file://example/README.md#L1-L111)
+- [example/ecosystem.config.cjs](file://example/ecosystem.config.cjs#L1-L24)
+
 ## Dependency Analysis
-The commands depend on shared utilities and the API client. The API client manages authentication and retries, while utilities handle path normalization and progress reporting.
+The commands depend on shared utilities and the API client. The API client manages authentication and retries, while utilities handle path normalization, progress reporting, and enhanced stdin streaming capabilities for Node.js integration.
 
 ```mermaid
 graph LR
@@ -304,6 +382,10 @@ Download["download.ts"] --> Client
 Download --> Utils
 Client --> FileAPI["api/file.ts"]
 Client --> Types["api/types.ts"]
+Utils --> Stdin["readStdin()"]
+Utils --> BufferOps["Buffer Operations"]
+Examples["example/*"] --> Upload
+Examples --> PM2["ecosystem.config.cjs"]
 ```
 
 **Diagram sources**
@@ -315,6 +397,7 @@ Client --> Types["api/types.ts"]
 - [src/api/file.ts](file://src/api/file.ts#L1-L12)
 - [src/utils/config.ts](file://src/utils/config.ts#L1-L6)
 - [src/utils/index.ts](file://src/utils/index.ts#L1-L11)
+- [example/backup_mongodb.mjs](file://example/backup_mongodb.mjs#L1-L104)
 
 **Section sources**
 - [src/index.ts](file://src/index.ts#L3-L6)
@@ -325,8 +408,7 @@ Client --> Types["api/types.ts"]
 - Token refresh: The client automatically refreshes expired tokens and retries failed requests.
 - Progress reporting: Both upload and download show progress bars and percentages.
 - Network timeouts: Requests have reasonable timeouts; ensure network connectivity and avoid proxies that block Baidu domains.
-
-[No sources needed since this section provides general guidance]
+- Concurrency control: The upload command allows tuning concurrent chunk uploads for optimal performance based on network conditions and system resources.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -342,17 +424,20 @@ Common issues and resolutions:
   - Ensure remote paths start with "/" and the user has access to the target directory.
 - Network connectivity
   - Confirm access to Baidu API endpoints and absence of blocking proxies.
+- Stdin streaming issues
+  - Ensure proper pipe redirection and data formatting when using "-" as LOCAL path.
+- Concurrency problems
+  - Adjust the concurrency parameter based on network bandwidth and system capabilities.
 
 **Section sources**
 - [src/api/client.ts](file://src/api/client.ts#L15-L37)
 - [src/commands/auth.ts](file://src/commands/auth.ts#L51-L63)
 - [src/commands/download.ts](file://src/commands/download.ts#L43-L51)
+- [src/commands/upload.ts](file://src/commands/upload.ts#L51-L57)
 - [README.md](file://README.md#L135-L155)
 
 ## Conclusion
-This CLI provides a robust, scriptable interface to Baidu Pan with strong support for listing, uploading, downloading, and authenticating. Use the provided examples and notes to integrate these commands into automation scripts and daily workflows.
-
-[No sources needed since this section summarizes without analyzing specific files]
+This CLI provides a robust, scriptable interface to Baidu Pan with strong support for listing, uploading, downloading, and authenticating. The enhanced stdin streaming capabilities and Node.js integration examples enable seamless automation and programmatic usage in modern development workflows. Use the provided examples and notes to integrate these commands into automation scripts, backup systems, and production environments.
 
 ## Appendices
 
@@ -374,3 +459,14 @@ This CLI provides a robust, scriptable interface to Baidu Pan with strong suppor
 **Section sources**
 - [src/utils/config.ts](file://src/utils/config.ts#L5-L6)
 - [README.md](file://README.md#L129-L134)
+
+### Appendix C: Node.js Integration Examples
+- MongoDB backup automation with PM2 scheduling
+- Environment-based configuration patterns
+- Child process execution for CLI integration
+- Stdin streaming for pipeline processing
+
+**Section sources**
+- [example/backup_mongodb.mjs](file://example/backup_mongodb.mjs#L1-L104)
+- [example/README.md](file://example/README.md#L1-L111)
+- [example/ecosystem.config.cjs](file://example/ecosystem.config.cjs#L1-L24)

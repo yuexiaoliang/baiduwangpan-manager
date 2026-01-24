@@ -307,29 +307,29 @@ metadata:
   name: baidupan-cli
 spec:
   containers:
-    - name: cli
-      image: your-image:latest
-      env:
-        - name: BAIDU_APP_KEY
-          valueFrom:
-            secretKeyRef:
-              name: baidupan-secrets
-              key: app-key
-        - name: BAIDU_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: baidupan-secrets
-              key: secret-key
-        - name: BAIDU_ACCESS_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: baidupan-secrets
-              key: access-token
-        - name: BAIDU_REFRESH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: baidupan-secrets
-              key: refresh-token
+  - name: cli
+    image: your-image:latest
+    env:
+    - name: BAIDU_APP_KEY
+      valueFrom:
+        secretKeyRef:
+          name: baidupan-secrets
+          key: app-key
+    - name: BAIDU_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: baidupan-secrets
+          key: secret-key
+    - name: BAIDU_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: baidupan-secrets
+          key: access-token
+    - name: BAIDU_REFRESH_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: baidupan-secrets
+          key: refresh-token
 ```
 
 ### CI/CD Pipeline Examples
@@ -346,26 +346,26 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Configure Environment
-        run: |
-          export BAIDU_APP_KEY="${{ secrets.BAIDU_APP_KEY }}"
-          export BAIDU_SECRET_KEY="${{ secrets.BAIDU_SECRET_KEY }}"
-          export BAIDU_ACCESS_TOKEN="${{ secrets.BAIDU_ACCESS_TOKEN }}"
-          export BAIDU_REFRESH_TOKEN="${{ secrets.BAIDU_REFRESH_TOKEN }}"
-
-      - name: Run Backup
-        run: |
-          npm run backup
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install Dependencies
+      run: npm ci
+      
+    - name: Configure Environment
+      run: |
+        export BAIDU_APP_KEY="${{ secrets.BAIDU_APP_KEY }}"
+        export BAIDU_SECRET_KEY="${{ secrets.BAIDU_SECRET_KEY }}"
+        export BAIDU_ACCESS_TOKEN="${{ secrets.BAIDU_ACCESS_TOKEN }}"
+        export BAIDU_REFRESH_TOKEN="${{ secrets.BAIDU_REFRESH_TOKEN }}"
+        
+    - name: Run Backup
+      run: |
+        npm run backup
 ```
 
 #### GitLab CI/CD
